@@ -22,9 +22,9 @@
 #define USART_FlowControl_RTS USART_CR3_RTSE
 #define USART_FlowControl_CTS USART_CR3_CTSE
 
-#define USART_New_Input (USART2->SR & USART_SR_RXNE)
+#define USART_New_Input (USART1->SR & USART_SR_RXNE)
 
-#define USART_Free_Output (USART2->SR & USART_SR_TXE)
+#define USART_Free_Output (USART1->SR & USART_SR_TXE)
 
 // **************** Buttons ***************************
 
@@ -56,7 +56,7 @@
 
 #define PCLK1_HZ HSI_HZ
 
-#define BAUD_RATE 9600U
+#define BAUD_RATE 38400U
 
 #define IN_MSG_LEN 3
 
@@ -326,16 +326,16 @@ void EXTI15_10_IRQHandler(void)
 }
 
 // after send
-void DMA1_Stream6_IRQHandler()
+void DMA2_Stream7_IRQHandler()
 {
     /* Odczytaj zgłoszone przerwania DMA1. */
-    uint32_t isr = DMA1->HISR;
+    uint32_t isr = DMA2->HISR;
     if (isr & DMA_HISR_TCIF6)
     {
         memset(dma_out, '\0', OUT_MSG_MAX_LEN);
         /* Obsłuż zakończenie transferu
         w strumieniu 6. */
-        DMA1->HIFCR = DMA_HIFCR_CTCIF6;
+        DMA2->HIFCR = DMA_HIFCR_CTCIF6;
         /* Jeśli jest coś do wysłania,
         wystartuj kolejną transmisję. */
         if (!buff_empty(&out_buff))
@@ -343,23 +343,23 @@ void DMA1_Stream6_IRQHandler()
             int button_code = buff_pop(&out_buff);
             int state_code = buff_pop(&out_buff);
             setNewMessage(button_code, state_code, dma_out);
-            DMA1_Stream6->M0AR = (uint32_t)dma_out;
-            DMA1_Stream6->NDTR = strlen(dma_out);
-            DMA1_Stream6->CR |= DMA_SxCR_EN;
+            DMA2_Stream7->M0AR = (uint32_t)dma_out;
+            DMA2_Stream7->NDTR = strlen(dma_out);
+            DMA2_Stream7->CR |= DMA_SxCR_EN;
         }
     }
 }
 
 // after recieve
-void DMA1_Stream5_IRQHandler()
+void DMA2_Stream5_IRQHandler()
 {
     /* Odczytaj zgłoszone przerwania DMA1. */
-    uint32_t isr = DMA1->HISR;
+    uint32_t isr = DMA2->HISR;
     if (isr & DMA_HISR_TCIF5)
     {
         /* Obsłuż zakończenie transferu
         w strumieniu 5. */
-        DMA1->HIFCR = DMA_HIFCR_CTCIF5;
+        DMA2->HIFCR = DMA_HIFCR_CTCIF5;
         in_size = dma_in == 'L' ? 1 : in_size + 1;
         in_buff[in_size - 1] = dma_in;
         if (in_size == IN_MSG_LEN)
@@ -368,9 +368,9 @@ void DMA1_Stream5_IRQHandler()
             in_size = 0;
         }
         /* Ponownie uaktywnij odbieranie. */
-        DMA1_Stream5->M0AR = (uint32_t)&dma_in;
-        DMA1_Stream5->NDTR = 1;
-        DMA1_Stream5->CR |= DMA_SxCR_EN;
+        DMA2_Stream5->M0AR = (uint32_t)&dma_in;
+        DMA2_Stream5->NDTR = 1;
+        DMA2_Stream5->CR |= DMA_SxCR_EN;
     }
 }
 
@@ -390,11 +390,10 @@ int main()
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN |
                     RCC_AHB1ENR_GPIOBEN |
                     RCC_AHB1ENR_GPIOCEN |
-                    RCC_AHB1ENR_DMA1EN;
-    RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+                    RCC_AHB1ENR_DMA2EN;
 
     // for ext. interrupts
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN | RCC_APB2ENR_USART1EN;
 
     __NOP();
     RedLEDoff();
@@ -460,71 +459,71 @@ int main()
 
     // uart pins config
     GPIOafConfigure(GPIOA,
-                    2,
+                    9,
                     GPIO_OType_PP,
                     GPIO_Fast_Speed,
                     GPIO_PuPd_NOPULL,
-                    GPIO_AF_USART2);
+                    GPIO_AF_USART1);
 
     // pull up to avoid random transfer at boot
     GPIOafConfigure(GPIOA,
-                    3,
+                    10,
                     GPIO_OType_PP,
                     GPIO_Fast_Speed,
                     GPIO_PuPd_UP,
-                    GPIO_AF_USART2);
+                    GPIO_AF_USART1);
 
     prev_but_state = buttonState();
     buff_init(&out_buff);
 
-    USART2->CR1 = USART_Mode_Rx_Tx | USART_WordLength_8b | USART_Parity_No;
+    USART1->CR1 = USART_Mode_Rx_Tx | USART_WordLength_8b | USART_Parity_No;
 
-    USART2->CR2 = USART_StopBits_1;
+    USART1->CR2 = USART_StopBits_1;
 
-    USART2->CR3 = USART_FlowControl_None;
+    USART1->CR3 = USART_FlowControl_None;
 
-    USART2->BRR = (PCLK1_HZ + (BAUD_RATE / 2U)) / BAUD_RATE;
+    USART1->BRR = (PCLK1_HZ + (BAUD_RATE / 2U)) / BAUD_RATE;
 
     // enable dma
 
-    USART2->CR3 = USART_CR3_DMAT | USART_CR3_DMAR;
+    USART1->CR3 = USART_CR3_DMAT | USART_CR3_DMAR;
 
     // config DMA tx
 
     // 4U becvasue channel 4, why << 25? becaues of chsel register bits 25-27
-    DMA1_Stream6->CR = 4U << 25 |
+    DMA2_Stream7->CR = 4U << 25 |
                        DMA_SxCR_PL_1 |
                        DMA_SxCR_MINC |
                        DMA_SxCR_DIR_0 |
                        DMA_SxCR_TCIE;
 
     // data register to write to
-    DMA1_Stream6->PAR = (uint32_t)&USART2->DR;
+    DMA2_Stream7->PAR = (uint32_t)&USART1->DR;
 
     // config dma rx
 
-    DMA1_Stream5->CR = 4U << 25 |
+    DMA2_Stream5->CR = 4U << 25 |
                        DMA_SxCR_PL_1 |
                        DMA_SxCR_MINC |
                        DMA_SxCR_TCIE;
 
-    DMA1_Stream5->PAR = (uint32_t)&USART2->DR;
+    DMA2_Stream5->PAR = (uint32_t)&USART1->DR;
 
-    DMA1->HIFCR = DMA_HIFCR_CTCIF6 |
+    DMA2->HIFCR = DMA_HIFCR_CTCIF6 |
                   DMA_HIFCR_CTCIF5;
 
     NVIC_SetPriorityGrouping(3);
 
     uint32_t dma_priority = NVIC_EncodePriority(3, 14, 0);
 
-    NVIC_SetPriority(DMA1_Stream6_IRQn, dma_priority);
-    NVIC_SetPriority(DMA1_Stream5_IRQn, dma_priority);
+    NVIC_SetPriority(DMA2_Stream7_IRQn, dma_priority);
+    NVIC_SetPriority(DMA2_Stream5_IRQn, dma_priority);
 
-    NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-    NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+    NVIC_EnableIRQ(DMA2_Stream7_IRQn);
+    NVIC_EnableIRQ(DMA2_Stream5_IRQn);
 
     // starts listening here
-    USART2->CR1 |= USART_Enable;
+    USART1->CR1 |= USART_Enable;
 
     // enable interrupts
 
@@ -554,9 +553,9 @@ int main()
     NVIC_EnableIRQ(EXTI15_10_IRQn);
 
     // init recieve
-    DMA1_Stream5->M0AR = (uint32_t)&dma_in;
-    DMA1_Stream5->NDTR = 1;
-    DMA1_Stream5->CR |= DMA_SxCR_EN;
+    DMA2_Stream5->M0AR = (uint32_t)&dma_in;
+    DMA2_Stream5->NDTR = 1;
+    DMA2_Stream5->CR |= DMA_SxCR_EN;
 
     while (1)
     {
@@ -564,16 +563,16 @@ int main()
         // todo disable interrupts for recieveing button inputs
         irq_level_t prot_level = IRQprotect(dma_priority);
         if (!buff_empty(&out_buff) &&
-            (DMA1_Stream6->CR & DMA_SxCR_EN) == 0 &&
-            (DMA1->HISR & DMA_HISR_TCIF6) == 0)
+            (DMA2_Stream7->CR & DMA_SxCR_EN) == 0 &&
+            (DMA2->HISR & DMA_HISR_TCIF6) == 0)
         {
             int button_code = buff_pop(&out_buff);
             int state_code = buff_pop(&out_buff);
             IRQunprotect(prot_level);
             setNewMessage(button_code, state_code, dma_out);
-            DMA1_Stream6->M0AR = (uint32_t)dma_out;
-            DMA1_Stream6->NDTR = strlen(dma_out);
-            DMA1_Stream6->CR |= DMA_SxCR_EN;
+            DMA2_Stream7->M0AR = (uint32_t)dma_out;
+            DMA2_Stream7->NDTR = strlen(dma_out);
+            DMA2_Stream7->CR |= DMA_SxCR_EN;
         }
         else
         {
