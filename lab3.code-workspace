@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../stm32"
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "string.h": "c"
+    }
+  }
+}
