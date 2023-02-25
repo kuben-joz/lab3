@@ -168,14 +168,14 @@ void handleOutput(uint32_t but_changed, uint32_t new_state)
     {
         if (but_change & 1)
         {
-            // uint32_t dma_priority = NVIC_EncodePriority(3, 14, 0);
-            // irq_level_t prot_level = IRQprotect(dma_priority);
+            uint32_t dma_priority = NVIC_EncodePriority(3, 14, 0);
+            irq_level_t prot_level = IRQprotect(dma_priority);
             //   we just drop old messages from the buffer instead of checking if it's full
             //   todo is this ok?
             buff_push(&out_buff, shift);
             // push 0 if pressed, 1 if released
             buff_push(&out_buff, prev_but & 1);
-            // IRQunprotect(prot_level);
+            IRQunprotect(prot_level);
             break;
         }
         shift++;
