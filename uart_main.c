@@ -170,8 +170,8 @@ void handleOutput(uint32_t but_changed, uint32_t new_state)
         {
             // uint32_t dma_priority = NVIC_EncodePriority(3, 14, 0);
             // irq_level_t prot_level = IRQprotect(dma_priority);
-            //   we just drop old messages from the buffer instead of checking if it's full
-            //   todo is this ok?
+            //    we just drop old messages from the buffer instead of checking if it's full
+            //    todo is this ok?
             buff_push(&out_buff, shift);
             // push 0 if pressed, 1 if released
             buff_push(&out_buff, prev_but & 1);
@@ -330,12 +330,12 @@ void DMA2_Stream7_IRQHandler()
 {
     /* Odczytaj zgłoszone przerwania DMA1. */
     uint32_t isr = DMA2->HISR;
-    if (isr & DMA_HISR_TCIF6)
+    if (isr & DMA_HISR_TCIF7)
     {
         memset(dma_out, '\0', OUT_MSG_MAX_LEN);
         /* Obsłuż zakończenie transferu
         w strumieniu 6. */
-        DMA2->HIFCR = DMA_HIFCR_CTCIF6;
+        DMA2->HIFCR = DMA_HIFCR_CTCIF7;
         /* Jeśli jest coś do wysłania,
         wystartuj kolejną transmisję. */
         if (!buff_empty(&out_buff))
@@ -509,7 +509,7 @@ int main()
 
     DMA2_Stream5->PAR = (uint32_t)&USART1->DR;
 
-    DMA2->HIFCR = DMA_HIFCR_CTCIF6 |
+    DMA2->HIFCR = DMA_HIFCR_CTCIF7 |
                   DMA_HIFCR_CTCIF5;
 
     NVIC_SetPriorityGrouping(3);
@@ -564,7 +564,7 @@ int main()
         irq_level_t prot_level = IRQprotect(dma_priority);
         if (!buff_empty(&out_buff) &&
             (DMA2_Stream7->CR & DMA_SxCR_EN) == 0 &&
-            (DMA2->HISR & DMA_HISR_TCIF6) == 0)
+            (DMA2->HISR & DMA_HISR_TCIF7) == 0)
         {
             int button_code = buff_pop(&out_buff);
             int state_code = buff_pop(&out_buff);
